@@ -666,7 +666,6 @@
       const el = document.createElement('span');
       el.className = `impact-hand${hot ? ' hot' : ''}`;
       el.textContent = '✋';
-      el.style.filter = `hue-rotate(${isLove() ? 0 : 200}deg) saturate(${isLove() ? 1 : 2})`;
       const size = hot ? 48 : 36;
       el.style.cssText += `left:${ox - size/2}px;top:${oy - size/2}px;`;
       popLayer.appendChild(el);
