@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>모몽가 궁디팡팡 🐿️</title>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ══════════════════════════════════════
+       배경 파티클 캔버스
+    ══════════════════════════════════════ */
+    #bgCanvas {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 0;
+    }
+
+    body {
+      background: #fef6ec;
+      font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      min-height: 100dvh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 28px 16px 24px;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; overflow-x: hidden;
+      position: relative; z-index: 1;
+    }
+
+    /* ── 타이틀 ── */
+    .title    { font-size: 26px; font-weight: 800; color: #4a3728; letter-spacing: -.5px; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; font-weight: 500; color: #a07850; margin-bottom: 20px; }
+
+    /* ── 카드 래퍼 ── */
+    .card-wrap {
+      position: relative;
+      width: 100%; max-width: 500px;
+      aspect-ratio: 9 / 16;
+      border-radius: 24px;
+      will-change: transform;
+    }
+
+    /* ── 카드 ── */
+    .card {
+      position: absolute; inset: 0;
+      border-radius: 24px; overflow: hidden;
+      box-shadow: 0 8px 32px rgba(160,100,40,.13), 0 2px 8px rgba(160,100,40,.08);
+      background: #e8d8c4;
+      transition: box-shadow .3s;
+    }
+    /* 5콤보 이상 글로우 */
+    .card.glow-combo { box-shadow: 0 0 0 4px rgba(255,143,163,.55), 0 8px 32px rgba(255,100,140,.28); }
+    .card video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+
+    /* ── 핫존 시각화 (개발용) ── */
+    .hot-zone {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 40%;
+      /* 출시 시 아래 두 줄 제거 */
+      background: linear-gradient(to top, rgba(255,182,193,.20), transparent);
+      border-top: 1.5px dashed rgba(255,140,160,.32);
+      pointer-events: none; z-index: 11; border-radius: 0 0 24px 24px;
+    }
+
+    /* ── 배지 공통 ── */
+    .badge {
+      position: absolute; top: 14px; z-index: 20;
+      padding: 6px 14px; border-radius: 999px;
+      font-size: 13px; font-weight: 700;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      white-space: nowrap;
+    }
+    .badge-count {
+      left: 14px;
+      background: rgba(255,245,230,.82); color: #7a4f2a;
+      border: 1.5px solid rgba(255,220,180,.7);
+    }
+    .badge-mode {
+      right: 14px;
+      background: rgba(255,245,230,.82); color: #7a4f2a;
+      border: 1.5px solid rgba(255,220,180,.7);
+      transition: background .3s, color .3s, border-color .3s;
+    }
+    /* 레벨별 배지 색 */
+    .badge-mode.lv1 { background: rgba(255,200,220,.88); color: #c4003a; border-color: rgba(255,143,163,.7); }
+    .badge-mode.lv2 { background: rgba(255,160,200,.90); color: #8b0030; border-color: rgba(255,100,160,.7); }
+    .badge-mode.lv3 { background: linear-gradient(135deg,#ffb3cc,#ffd6a0); color: #6b001a; border-color: #ff8fa3; }
+
+    /* ── 콤보 배지 ── */
+    #badgeCombo {
+      position: absolute; bottom: 14px; right: 14px; z-index: 20;
+      padding: 5px 12px; border-radius: 999px;
+      font-size: 13px; font-weight: 800;
+      background: rgba(255,100,140,.88); color: #fff;
+      border: 1.5px solid rgba(255,143,163,.8);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      white-space: nowrap;
+      opacity: 0; transform: scale(.7);
+      transition: opacity .2s, transform .2s;
+      pointer-events: none;
+    }
+    #badgeCombo.show { opacity: 1; transform: scale(1); }
+    #badgeCombo.pop {
+      animation: combo-pop .18s cubic-bezier(.36,1.6,.6,1);
+    }
+    @keyframes combo-pop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.35); }
+      100% { transform: scale(1); }
+    }
+
+    /* ── 음소거 버튼 ── */
+    #btnMute {
+      position: absolute; top: -12px; right: -12px;
+      width: 34px; height: 34px;
+      border: none; border-radius: 50%;
+      background: rgba(255,245,230,.92);
+      box-shadow: 0 2px 8px rgba(160,100,40,.15);
+      font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 30; touch-action: manipulation;
+      transition: transform .12s;
+    }
+    #btnMute:active { transform: scale(.88); }
+
+    /* ── 탭존 ── */
+    .tap-zone {
+      position: absolute; inset: 0;
+      cursor: pointer; z-index: 10; touch-action: manipulation;
+    }
+
+    /* ══════════════════════════════════════
+       말풍선
+    ══════════════════════════════════════ */
+    .bubble-layer {
+      position: absolute; bottom: 100%; left: 0; right: 0;
+      height: 90px; pointer-events: none; z-index: 40; overflow: visible;
+    }
+    .bubble {
+      position: absolute; bottom: 10px; left: 50%;
+      transform: translateX(-50%);
+      background: #fff; border: 2px solid #ffc4d6; border-radius: 16px;
+      padding: 8px 16px; font-size: 16px; font-weight: 700; color: #4a3728;
+      white-space: nowrap;
+      box-shadow: 0 4px 18px rgba(255,140,170,.20), 0 1px 6px rgba(0,0,0,.07);
+      animation: bubble-rise 1.2s ease-out forwards;
+      pointer-events: none;
+    }
+    .bubble::after {
+      content: ''; position: absolute; bottom: -10px; left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent; border-top-color: #ffc4d6;
+    }
+    .bubble::before {
+      content: ''; position: absolute; bottom: -7px; left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent; border-top-color: #fff; z-index: 1;
+    }
+    @keyframes bubble-rise {
+      0%   { opacity: 1; transform: translateX(-50%) translateY(0);     }
+      20%  { opacity: 1; transform: translateX(-50%) translateY(-8px);  }
+      75%  { opacity: 1; transform: translateX(-50%) translateY(-42px); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-50px); }
+    }
+    .bubble.combo { border-color: #ff8fa3; color: #c4003a; box-shadow: 0 4px 18px rgba(255,100,140,.28); }
+    .bubble.combo::after { border-top-color: #ff8fa3; }
+
+    /* ══════════════════════════════════════
+       전체화면 오버레이 이펙트
+    ══════════════════════════════════════ */
+
+    /* 핑크 레벨업 플래시 */
+    #levelFlash {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(255,143,163,.55);
+      opacity: 0; pointer-events: none;
+      animation: none;
+    }
+    @keyframes flash-in-out {
+      0%   { opacity: 0; }
+      25%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* LEVEL UP! 텍스트 */
+    #levelUpText {
+      position: fixed; inset: 0; z-index: 201;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none; opacity: 0;
+    }
+    #levelUpText span {
+      font-size: clamp(36px,10vw,56px); font-weight: 900;
+      color: #fff; letter-spacing: -1px;
+      text-shadow: 0 4px 24px rgba(255,80,120,.6), 0 2px 8px rgba(0,0,0,.18);
+      padding: 10px 28px; border-radius: 20px;
+      background: linear-gradient(135deg,#ff8fa3,#ffb347);
+      box-shadow: 0 8px 36px rgba(255,100,140,.4);
+      transform: scale(.6);
+      animation: none;
+    }
+    @keyframes levelup-pop {
+      0%   { opacity: 0; transform: scale(.6); }
+      20%  { opacity: 1; transform: scale(1.12); }
+      40%  { transform: scale(.95); }
+      55%  { transform: scale(1.04); opacity: 1; }
+      80%  { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.05); }
+    }
+
+    /* ══════════════════════════════════════
+       이펙트 레이어들 (카드 안)
+    ══════════════════════════════════════ */
+    .pop-layer {
+      position: absolute; inset: 0;
+      z-index: 15; pointer-events: none; overflow: visible;
+    }
+
+    /* ① 손바닥 */
+    .impact-hand {
+      position: absolute; font-size: 40px; line-height: 1;
+      pointer-events: none; transform-origin: center bottom;
+      animation: hand-slam .25s cubic-bezier(.36,1.6,.6,1) forwards;
+    }
+    .impact-hand.hot { font-size: 52px; animation-name: hand-slam-hot; }
+    @keyframes hand-slam {
+      0%   { opacity: 0; transform: scale(.3)  rotate(-15deg); }
+      55%  { opacity: 1; transform: scale(1.4)  rotate(-8deg);  }
+      100% { opacity: 0; transform: scale(1.0)  rotate(-4deg);  }
+    }
+    @keyframes hand-slam-hot {
+      0%   { opacity: 0; transform: scale(.3)  rotate(-15deg); }
+      55%  { opacity: 1; transform: scale(1.6)  rotate(-6deg);  }
+      100% { opacity: 0; transform: scale(1.0)  rotate(-2deg);  }
+    }
+
+    /* ② 펄스 링 */
+    .impact-pulse {
+      position: absolute; border-radius: 50%;
+      border: 4px solid #ff8fa3; pointer-events: none;
+      animation: pulse-ring .5s ease-out forwards;
+    }
+    @keyframes pulse-ring {
+      0%   { transform: scale(0);   opacity: 1; }
+      100% { transform: scale(3.2); opacity: 0; }
+    }
+
+    /* ③ 파티클 */
+    .particle {
+      position: absolute; font-size: 20px; line-height: 1;
+      pointer-events: none; animation: particle-fly .6s ease-out forwards;
+    }
+    @keyframes particle-fly {
+      0%   { opacity: 1; transform: translate(0,0) rotate(0deg) scale(1); }
+      70%  { opacity: 1; }
+      100% { opacity: 0; transform: translate(var(--tx),var(--ty)) rotate(var(--rot)) scale(.5); }
+    }
+
+    /* ④ 팝 이모지 */
+    .pop-emoji {
+      position: absolute; pointer-events: none; line-height: 1;
+      animation: pop-rise .75s ease-out forwards;
+    }
+    @keyframes pop-rise {
+      0%   { opacity: 1; transform: translateY(0)     scale(1);    }
+      60%  { opacity: 1; transform: translateY(-55px)  scale(1.2); }
+      100% { opacity: 0; transform: translateY(-105px) scale(.8);  }
+    }
+
+    /* ⑤ 리플 */
+    .ripple {
+      position: absolute; border-radius: 50%;
+      transform: scale(0); animation: ripple-out .5s ease-out forwards;
+      pointer-events: none;
+    }
+    .ripple.normal { background: rgba(255,210,150,.42); }
+    .ripple.hot    { background: rgba(255,140,160,.48); }
+    @keyframes ripple-out { to { transform: scale(4); opacity: 0; } }
+
+    /* ⑥ 핫존 플래시 */
+    .hot-flash {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at center bottom, rgba(255,160,180,.48), transparent 70%);
+      pointer-events: none; animation: hot-flash .3s ease-out forwards; z-index: 12;
+    }
+    @keyframes hot-flash { 0% { opacity: .6; } 100% { opacity: 0; } }
+
+    /* ── 카드 shake (card-wrap) ── */
+    @keyframes impact-normal {
+      0%   { transform: scale(1,1); }
+      12%  { transform: translateX(-6px)  scale(1.01,.96); }
+      28%  { transform: translateX(6px)   scale(1.02,1.00); }
+      45%  { transform: translateX(-3px)  scale(1.01,.98); }
+      62%  { transform: translateX(3px)   scale(1.01,1.00); }
+      80%  { transform: translateX(-1px)  scale(1.0,1.0); }
+      100% { transform: translate(0,0)    scale(1,1); }
+    }
+    @keyframes impact-hot {
+      0%   { transform: scale(1,1); }
+      10%  { transform: translate(-9px,-4px) scale(1.01,.94); }
+      25%  { transform: translate(9px, 3px)  scale(1.03,1.01); }
+      40%  { transform: translate(-5px,-6px) scale(1.01,.96); }
+      58%  { transform: translate(5px, 2px)  scale(1.02,1.01); }
+      75%  { transform: translate(-2px, 0)   scale(1.0,1.0); }
+      100% { transform: translate(0,0)       scale(1,1); }
+    }
+    /* 10콤보 이상 화면 흔들 (body에 적용) */
+    @keyframes screen-shake {
+      0%,100% { transform: translate(0,0); }
+      20%  { transform: translate(-5px,2px); }
+      40%  { transform: translate(5px,-2px); }
+      60%  { transform: translate(-3px,1px); }
+      80%  { transform: translate(3px,-1px); }
+    }
+    body.screen-shake { animation: screen-shake .3s ease; }
+
+    .card-wrap.shake-normal { animation: impact-normal .32s cubic-bezier(.34,1.56,.64,1) forwards; }
+    .card-wrap.shake-hot    { animation: impact-hot    .38s cubic-bezier(.34,1.56,.64,1) forwards; }
+
+    /* ── 하단 버튼 ── */
+    .buttons {
+      display: flex; gap: 10px;
+      margin-top: 18px; width: 100%; max-width: 500px;
+    }
+    .btn {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; gap: 4px; padding: 12px 6px;
+      border: none; border-radius: 18px;
+      background: #fff5e8; color: #7a4f2a;
+      font-family: inherit; font-size: 11px; font-weight: 700;
+      cursor: pointer; box-shadow: 0 2px 8px rgba(160,100,40,.10);
+      transition: transform .12s, background .12s;
+      touch-action: manipulation;
+    }
+    .btn .btn-icon { font-size: 22px; line-height: 1; }
+    .btn:active { transform: scale(.93); background: #ffe8cc; }
+
+    /* ── 토스트 ── */
+    .toast {
+      position: fixed; bottom: 32px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(74,55,40,.88); color: #fff5e8;
+      font-size: 13px; font-weight: 600;
+      padding: 10px 22px; border-radius: 999px;
+      opacity: 0; pointer-events: none;
+      transition: opacity .25s, transform .25s;
+      white-space: nowrap; z-index: 999;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- 배경 파티클 캔버스 -->
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- 전체화면 레벨업 이펙트 -->
+  <div id="levelFlash"></div>
+  <div id="levelUpText"><span>LEVEL UP! 🎉</span></div>
+
+  <h1 class="title">모몽가 궁디팡팡 🐿️</h1>
+  <p class="subtitle">우리 모몽가 엉덩이 토닥토닥</p>
+
+  <div class="card-wrap" id="cardWrap">
+    <div class="bubble-layer" id="bubbleLayer"></div>
+
+    <div class="card" id="card">
+      <video id="vid" src="momong.mp4" autoplay loop muted playsinline preload="auto"></video>
+
+      <div class="pop-layer" id="popLayer"></div>
+      <div class="hot-zone"></div>
+
+      <div class="badge badge-count" id="badgeCount">팡팡 0회</div>
+      <div class="badge badge-mode"  id="badgeMode">기분 좋아 💕</div>
+      <div id="badgeCombo"></div>
+
+      <div class="tap-zone" id="tapZone"></div>
+    </div>
+
+    <button id="btnMute" title="소리 토글">🔔</button>
+  </div>
+
+  <div class="buttons">
+    <button class="btn" id="btnPhoto"><span class="btn-icon">📸</span>사진 저장</button>
+    <button class="btn" id="btnVideo"><span class="btn-icon">🎬</span>영상 저장</button>
+    <button class="btn" id="btnReset"><span class="btn-icon">🔄</span>리셋</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+  (() => {
+    /* ══════════════════════════════════════
+       요소 참조
+    ══════════════════════════════════════ */
+    const cardWrap    = document.getElementById('cardWrap');
+    const card        = document.getElementById('card');
+    const tapZone     = document.getElementById('tapZone');
+    const popLayer    = document.getElementById('popLayer');
+    const bubbleLayer = document.getElementById('bubbleLayer');
+    const badgeCount  = document.getElementById('badgeCount');
+    const badgeMode   = document.getElementById('badgeMode');
+    const badgeCombo  = document.getElementById('badgeCombo');
+    const vid         = document.getElementById('vid');
+    const toast       = document.getElementById('toast');
+    const btnMute     = document.getElementById('btnMute');
+    const levelFlash  = document.getElementById('levelFlash');
+    const levelUpText = document.getElementById('levelUpText');
+    const bgCanvas    = document.getElementById('bgCanvas');
+    const bgCtx       = bgCanvas.getContext('2d');
+
+    /* ══════════════════════════════════════
+       상수 & 메시지
+    ══════════════════════════════════════ */
+    const EMOJIS_NORMAL = ['🐿️','✨','💛','🌰','🫧','💫','🌟'];
+    const EMOJIS_HOT    = ['💥','🍑','💢','🔥','⭐','🌸','🎀'];
+    const EMOJIS_TURBO  = ['🔥','💥','⚡','🎉','🥳','🎊','💯'];
+    const PARTICLES     = ['✨','💥','⭐','🌟','💫','🎇'];
+    const HANDS         = ['👋','✋'];
+
+    const buttMessages  = ['꺄앙~ 🐿️','모몽몽몽','또 때려줘잉','찰싹! 💕','엉덩이 빨개졌어','에헴! 더 세게!','팡팡 좋아','히끄으응'];
+    const missMessages  = ['어딜 만져용 🥺','거긴 아니야','엉덩이는 아래쪽이야'];
+    const comboMessages = ['팡팡 콤보 🔥','리듬감 좋아','신났구나!','MAX 모몽가 ✨'];
+
+    /* 레벨 정의 */
+    const LEVELS = [
+      { min: 0,  max: 9,   label: '기분 좋아 💕',    cls: '',    bgRate: 1 },
+      { min: 10, max: 29,  label: '꺄 더 해줘 💖',   cls: 'lv1', bgRate: 2 },
+      { min: 30, max: 59,  label: 'MAX 행복 ✨💗',    cls: 'lv2', bgRate: 3.5 },
+      { min: 60, max: Infinity, label: '모몽가 승천 🌈🐿️✨', cls: 'lv3', bgRate: 6 },
+    ];
+
+    const HOT_ZONE_RATIO  = 0.4;
+    const COMBO_TIMEOUT   = 500;   // ms — 이 시간 안에 탭해야 콤보 유지
+    const COMBO_THRESHOLD = 5;     // 말풍선 콤보 메시지 전환 기준
+
+    /* ══════════════════════════════════════
+       상태
+    ══════════════════════════════════════ */
+    let hotCount     = 0;   // 핫존 적중 횟수 (카운터 표시용)
+    let comboStreak  = 0;   // 현재 콤보 연속 횟수
+    let comboTimer   = null;
+    let currentLevel = 0;
+    let soundEnabled = true;
+    let toastTimer   = null;
+    let lastTouchEnd = 0;
+    let audioCtx     = null;
+
+    /* ══════════════════════════════════════
+       배경 파티클 시스템 (Canvas)
+    ══════════════════════════════════════ */
+    const BG_SYMBOLS = ['💕','🌸','⭐','✨','💫','💗','🌟'];
+    const bgParticles = [];
+
+    function resizeBgCanvas() {
+      bgCanvas.width  = window.innerWidth;
+      bgCanvas.height = window.innerHeight;
+    }
+    resizeBgCanvas();
+    window.addEventListener('resize', resizeBgCanvas);
+
+    function makeBgParticle() {
+      return {
+        x:    Math.random() * bgCanvas.width,
+        y:    bgCanvas.height + 20,
+        sym:  BG_SYMBOLS[Math.floor(Math.random() * BG_SYMBOLS.length)],
+        size: 14 + Math.random() * 14,
+        vx:   (Math.random() - .5) * .6,
+        vy:   -(0.5 + Math.random() * 0.8),
+        alpha: 0.65 + Math.random() * .3,
+        life:  0,
+        maxLife: 160 + Math.random() * 120,
+      };
+    }
+
+    /* 현재 레벨 bgRate에 따라 파티클 생성 */
+    let bgTick = 0;
+    function bgLoop() {
+      bgTick++;
+      const rate = LEVELS[currentLevel].bgRate;
+      /* rate=1 → 매 80프레임, rate=6 → 매 13프레임 */
+      const interval = Math.max(13, Math.round(80 / rate));
+      if (bgTick % interval === 0) bgParticles.push(makeBgParticle());
+
+      bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+      for (let i = bgParticles.length - 1; i >= 0; i--) {
+        const p = bgParticles[i];
+        p.x += p.vx; p.y += p.vy; p.life++;
+        const fade = Math.min(1, Math.min(p.life / 20, (p.maxLife - p.life) / 20));
+        bgCtx.globalAlpha = p.alpha * fade;
+        bgCtx.font = `${p.size}px serif`;
+        bgCtx.fillText(p.sym, p.x, p.y);
+        if (p.life >= p.maxLife) bgParticles.splice(i, 1);
+      }
+      bgCtx.globalAlpha = 1;
+      requestAnimationFrame(bgLoop);
+    }
+    bgLoop();
+
+    /* ══════════════════════════════════════
+       유틸
+    ══════════════════════════════════════ */
+    const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+    function isHotZone(oy) {
+      return oy >= tapZone.offsetHeight * (1 - HOT_ZONE_RATIO);
+    }
+
+    /* ══════════════════════════════════════
+       레벨 & 배지 갱신
+    ══════════════════════════════════════ */
+    function getLevel(n) {
+      for (let i = LEVELS.length - 1; i >= 0; i--) {
+        if (n >= LEVELS[i].min) return i;
+      }
+      return 0;
+    }
+
+    function updateBadges() {
+      badgeCount.textContent = `팡팡 ${hotCount}회`;
+
+      const newLevel = getLevel(hotCount);
+      if (newLevel !== currentLevel) {
+        triggerLevelUp(LEVELS[newLevel].label);
+      }
+      currentLevel = newLevel;
+      const lv = LEVELS[currentLevel];
+      badgeMode.textContent = lv.label;
+      badgeMode.className   = `badge badge-mode${lv.cls ? ' ' + lv.cls : ''}`;
+    }
+
+    /* ══════════════════════════════════════
+       콤보 배지
+    ══════════════════════════════════════ */
+    function updateComboBadge() {
+      if (comboStreak >= 2) {
+        badgeCombo.textContent = `x${comboStreak} 콤보!`;
+        badgeCombo.classList.add('show');
+        /* 팝 애니메이션 재시작 */
+        badgeCombo.classList.remove('pop');
+        void badgeCombo.offsetWidth;
+        badgeCombo.classList.add('pop');
+        /* 5콤보 이상: 카드 글로우 */
+        card.classList.toggle('glow-combo', comboStreak >= 5);
+        /* 10콤보 이상: 화면 흔들림 */
+        if (comboStreak >= 10 && comboStreak % 5 === 0) {
+          document.body.classList.remove('screen-shake');
+          void document.body.offsetWidth;
+          document.body.classList.add('screen-shake');
+          document.body.addEventListener('animationend', () =>
+            document.body.classList.remove('screen-shake'), { once: true });
+        }
+      } else {
+        badgeCombo.classList.remove('show', 'pop');
+        card.classList.remove('glow-combo');
+      }
+    }
+
+    function resetCombo() {
+      comboStreak = 0;
+      updateComboBadge();
+    }
+
+    /* ══════════════════════════════════════
+       레벨업 이펙트
+    ══════════════════════════════════════ */
+    function triggerLevelUp(label) {
+      /* 핑크 플래시 */
+      levelFlash.style.animation = 'none';
+      void levelFlash.offsetWidth;
+      levelFlash.style.animation = 'flash-in-out .5s ease-out forwards';
+
+      /* LEVEL UP 텍스트 */
+      const span = levelUpText.querySelector('span');
+      span.style.animation = 'none';
+      void span.offsetWidth;
+      levelUpText.style.opacity = '1';
+      span.style.animation = 'levelup-pop .8s cubic-bezier(.34,1.56,.64,1) forwards';
+      span.addEventListener('animationend', () => {
+        levelUpText.style.opacity = '0';
+      }, { once: true });
+
+      /* 하트 파티클 5초 집중 방출 */
+      let elapsed = 0;
+      const heartInterval = setInterval(() => {
+        for (let i = 0; i < 3; i++) bgParticles.push(makeBgParticle());
+        elapsed += 200;
+        if (elapsed >= 5000) clearInterval(heartInterval);
+      }, 200);
+    }
+
+    /* ══════════════════════════════════════
+       Web Audio — "팡!"
+    ══════════════════════════════════════ */
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    }
+
+    function playPang(hot) {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioCtx();
+        const now = ctx.currentTime;
+
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(hot ? 280 : 220, now);
+        osc.frequency.exponentialRampToValueAtTime(hot ? 80 : 60, now + .12);
+        gain.gain.setValueAtTime(hot ? .55 : .38, now);
+        gain.gain.exponentialRampToValueAtTime(.001, now + .13);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(now); osc.stop(now + .14);
+
+        const bufLen = ctx.sampleRate * .07;
+        const buf    = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        const data   = buf.getChannelData(0);
+        for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const ng  = ctx.createGain();
+        ng.gain.setValueAtTime(hot ? .30 : .18, now);
+        ng.gain.exponentialRampToValueAtTime(.001, now + .07);
+        src.connect(ng); ng.connect(ctx.destination);
+        src.start(now);
+      } catch {}
+    }
+
+    btnMute.addEventListener('click', (e) => {
+      e.stopPropagation();
+      soundEnabled = !soundEnabled;
+      btnMute.textContent = soundEnabled ? '🔔' : '🔕';
+    });
+
+    /* ══════════════════════════════════════
+       말풍선
+    ══════════════════════════════════════ */
+    function spawnBubble(msg, isCombo) {
+      const el = document.createElement('div');
+      el.className = `bubble${isCombo ? ' combo' : ''}`;
+      el.textContent = msg;
+      bubbleLayer.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+
+    /* ══════════════════════════════════════
+       이펙트 헬퍼들
+    ══════════════════════════════════════ */
+    function spawnHand(ox, oy, hot) {
+      const el = document.createElement('span');
+      el.className = `impact-hand${hot ? ' hot' : ''}`;
+      el.textContent = pick(HANDS);
+      const size = hot ? 52 : 40;
+      el.style.cssText = `left:${ox - size/2}px;top:${oy - size/2}px;`;
+      popLayer.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+
+    function spawnPulse(ox, oy) {
+      const el = document.createElement('div');
+      el.className = 'impact-pulse';
+      const size = 48;
+      el.style.cssText = `width:${size}px;height:${size}px;left:${ox-size/2}px;top:${oy-size/2}px;`;
+      popLayer.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+
+    function spawnParticles(ox, oy, hot) {
+      const num = hot ? 6 : 4;
+      for (let i = 0; i < num; i++) {
+        const el = document.createElement('span');
+        el.className = 'particle';
+        el.textContent = pick(PARTICLES);
+        const angle = (360 / num) * i + (Math.random() - .5) * 40;
+        const rad   = angle * Math.PI / 180;
+        const dist  = (hot ? 80 : 60) + Math.random() * (hot ? 50 : 40);
+        el.style.cssText = `left:${ox}px;top:${oy}px;
+          --tx:${Math.cos(rad)*dist}px;--ty:${Math.sin(rad)*dist}px;
+          --rot:${(Math.random()-.5)*720}deg;animation-delay:${i*20}ms;`;
+        popLayer.appendChild(el);
+        el.addEventListener('animationend', () => el.remove());
+      }
+    }
+
+    function spawnEmoji(clientX, clientY, hot) {
+      const turbo = hotCount >= 10;
+      const pool  = turbo ? EMOJIS_TURBO : hot ? EMOJIS_HOT : EMOJIS_NORMAL;
+      const num   = turbo ? 3 : hot ? 2 : 1;
+      const rect  = popLayer.getBoundingClientRect();
+      for (let i = 0; i < num; i++) {
+        const el = document.createElement('span');
+        el.className = 'pop-emoji';
+        el.textContent = pick(pool);
+        const spread = turbo ? 44 : hot ? 30 : 10;
+        el.style.cssText = `
+          left:${clientX - rect.left + (Math.random()-.5)*spread}px;
+          top:${clientY - rect.top}px;
+          font-size:${hot ? 34 : 28}px;
+          animation-delay:${i*55}ms;`;
+        popLayer.appendChild(el);
+        el.addEventListener('animationend', () => el.remove());
+      }
+    }
+
+    function spawnRipple(ox, oy, hot) {
+      const el = document.createElement('div');
+      const size = hot ? 90 : 60;
+      el.className = `ripple ${hot ? 'hot' : 'normal'}`;
+      el.style.cssText = `width:${size}px;height:${size}px;left:${ox-size/2}px;top:${oy-size/2}px;`;
+      card.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+
+    function spawnHotFlash() {
+      const el = document.createElement('div');
+      el.className = 'hot-flash';
+      card.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+
+    function shakeCard(hot) {
+      const cls = hot ? 'shake-hot' : 'shake-normal';
+      cardWrap.classList.remove('shake-normal','shake-hot');
+      void cardWrap.offsetWidth;
+      cardWrap.classList.add(cls);
+      cardWrap.addEventListener('animationend', () => cardWrap.classList.remove(cls), { once: true });
+    }
+
+    /* ══════════════════════════════════════
+       핵심 탭 처리
+    ══════════════════════════════════════ */
+    function handleTap(ox, oy, clientX, clientY) {
+      const hot = isHotZone(oy);
+
+      /* 콤보 타이머 갱신 */
+      clearTimeout(comboTimer);
+      comboStreak++;
+      comboTimer = setTimeout(resetCombo, COMBO_TIMEOUT);
+      updateComboBadge();
+
+      if (hot) {
+        hotCount++;
+        updateBadges();
+      }
+
+      playPang(hot);
+      spawnHand(ox, oy, hot);
+      spawnPulse(ox, oy);
+      spawnParticles(ox, oy, hot);
+      spawnEmoji(clientX, clientY, hot);
+      spawnRipple(ox, oy, hot);
+      shakeCard(hot);
+
+      if (hot) {
+        spawnHotFlash();
+        if (navigator.vibrate) navigator.vibrate([30, 20, 30]);
+        /* 콤보 5 이상이면 콤보 메시지 우선 */
+        spawnBubble(comboStreak >= COMBO_THRESHOLD ? pick(comboMessages) : pick(buttMessages),
+                    comboStreak >= COMBO_THRESHOLD);
+      } else {
+        if (navigator.vibrate) navigator.vibrate(40);
+        spawnBubble(pick(missMessages), false);
+      }
+    }
+
+    /* ══════════════════════════════════════
+       이벤트 바인딩
+    ══════════════════════════════════════ */
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd < 300) e.preventDefault();
+      lastTouchEnd = now;
+    }, { passive: false });
+
+    tapZone.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const touch = e.changedTouches[0];
+      const rect  = tapZone.getBoundingClientRect();
+      handleTap(touch.clientX - rect.left, touch.clientY - rect.top, touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    tapZone.addEventListener('click', (e) => {
+      if (e.sourceCapabilities && !e.sourceCapabilities.firesTouchEvents) {
+        handleTap(e.offsetX, e.offsetY, e.clientX, e.clientY);
+      }
+    });
+
+    /* ══════════════════════════════════════
+       토스트
+    ══════════════════════════════════════ */
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    /* ══════════════════════════════════════
+       사진 저장
+    ══════════════════════════════════════ */
+    document.getElementById('btnPhoto').addEventListener('click', async () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width  = vid.videoWidth  || 720;
+        canvas.height = vid.videoHeight || 1280;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+
+        const fs  = Math.round(canvas.width * .045);
+        const pad = fs * .6;
+        ctx.font      = `bold ${fs}px Pretendard, sans-serif`;
+        const label   = `팡팡 ${hotCount}회 🐿️`;
+        const tw      = ctx.measureText(label).width;
+        ctx.fillStyle = 'rgba(255,245,230,0.82)';
+        roundRect(ctx, pad*.6, pad*.6, tw+pad*1.6, fs+pad, fs*.55);
+        ctx.fillStyle = '#7a4f2a';
+        ctx.fillText(label, pad*1.4, pad+fs*.92);
+
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = `momonga_${hotCount}.png`; a.click();
+        URL.revokeObjectURL(url);
+        showToast('📸 사진 저장 완료!');
+      } catch { showToast('😢 사진 저장에 실패했어요'); }
+    });
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+      ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r);
+      ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h);
+      ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r);
+      ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); ctx.fill();
+    }
+
+    /* ══════════════════════════════════════
+       영상 저장 / 리셋
+    ══════════════════════════════════════ */
+    document.getElementById('btnVideo').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = 'momong.mp4'; a.download = 'momonga.mp4'; a.click();
+      showToast('🎬 영상 저장 시작!');
+    });
+
+    document.getElementById('btnReset').addEventListener('click', () => {
+      hotCount = 0; comboStreak = 0; currentLevel = 0;
+      clearTimeout(comboTimer);
+      updateBadges(); updateComboBadge();
+      showToast('🔄 초기화 완료!');
+    });
+
+    /* 초기화 */
+    updateBadges();
+    vid.play().catch(() => {});
+  })();
+  </script>
+</body>
+</html>
