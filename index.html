@@ -293,12 +293,12 @@
 
     /* ── 하단 버튼 ── */
     .buttons {
-      display: flex; gap: 8px;
+      display: flex; justify-content: center;
       margin-top: 12px; width: 100%; max-width: 500px;
     }
     .btn {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; gap: 3px; padding: 11px 6px;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 3px; padding: 10px 28px;
       border: none; border-radius: 16px;
       background: #fff5e8; color: #7a4f2a;
       font-family: inherit; font-size: 11px; font-weight: 700;
@@ -306,7 +306,7 @@
       transition: transform .12s, background .12s;
       touch-action: manipulation;
     }
-    .btn .btn-icon { font-size: 20px; line-height: 1; }
+    .btn .btn-icon { font-size: 18px; line-height: 1; }
     .btn:active { transform: scale(.93); background: #ffe8cc; }
 
     /* ── 토스트 ── */
@@ -415,8 +415,8 @@
 
   <!-- 모드 토글 -->
   <div class="mode-toggle">
-    <button class="mode-btn love active" id="modeL">💕 애껴주기</button>
-    <button class="mode-btn angry"       id="modeA">💢 화내기</button>
+    <button class="mode-btn love active" id="modeL">애껴주기</button>
+    <button class="mode-btn angry"       id="modeA">화내기</button>
   </div>
 
   <!-- 영상 + 배지 묶음 -->
@@ -449,8 +449,6 @@
 
   <!-- 하단 버튼 -->
   <div class="buttons">
-    <button class="btn" id="btnPhoto"><span class="btn-icon">📸</span>사진 저장</button>
-    <button class="btn" id="btnVideo"><span class="btn-icon">🎬</span>영상 저장</button>
     <button class="btn" id="btnReset"><span class="btn-icon">🔄</span>리셋</button>
   </div>
 
@@ -464,12 +462,12 @@
         <button class="modal-close" id="modalClose">✕</button>
       </div>
       <div>
-        <div class="msg-section-title">💕 애껴주기 메시지</div>
+        <div class="msg-section-title">애껴주기 메시지</div>
         <div class="msg-list" id="loveMsgList"></div>
         <button class="add-btn" id="addLoveMsg">+ 메시지 추가</button>
       </div>
       <div>
-        <div class="msg-section-title">💢 화내기 메시지</div>
+        <div class="msg-section-title">화내기 메시지</div>
         <div class="msg-list" id="angryMsgList"></div>
         <button class="add-btn" id="addAngryMsg">+ 메시지 추가</button>
       </div>
@@ -511,9 +509,6 @@
     let lastTouchEnd = 0;
     let audioCtx     = null;
 
-    /* ── 핫존 정의 (비율, 조정 가능) ── */
-    /* 영상을 보면서 아래 값을 수정해 엉덩이 위치에 맞출 것 */
-    const HZ = { x1: 0, x2: 0.50, y1: 0.25, y2: 0.70 };
 
     /* ── 요소 참조 ── */
     const cardWrap    = document.getElementById('cardWrap');
@@ -536,38 +531,17 @@
     const modalOverlay= document.getElementById('modalOverlay');
     const loveMsgList = document.getElementById('loveMsgList');
     const angryMsgList= document.getElementById('angryMsgList');
-    const hotZoneEl   = document.getElementById('hotZoneEl');
 
     /* ══════════════════════════════════════
-       영상 원본 비율 적용 + 핫존 시각화 동기화
+       영상 원본 비율 적용
     ══════════════════════════════════════ */
     function applyVideoRatio() {
       const w = vid.videoWidth; const h = vid.videoHeight;
       if (w && h) cardWrap.style.aspectRatio = `${w} / ${h}`;
-      syncHotZoneViz();
-    }
-
-    /* 핫존 시각화 div를 HZ 비율에 맞게 업데이트 */
-    function syncHotZoneViz() {
-      hotZoneEl.style.left   = (HZ.x1 * 100) + '%';
-      hotZoneEl.style.width  = ((HZ.x2 - HZ.x1) * 100) + '%';
-      hotZoneEl.style.top    = (HZ.y1 * 100) + '%';
-      hotZoneEl.style.height = ((HZ.y2 - HZ.y1) * 100) + '%';
     }
 
     vid.addEventListener('loadedmetadata', applyVideoRatio);
-    /* 이미 캐시된 경우 */
     if (vid.readyState >= 1) applyVideoRatio();
-
-    /* ══════════════════════════════════════
-       핫존 판별 (사각형)
-    ══════════════════════════════════════ */
-    function isHotZone(ox, oy) {
-      const w = tapZone.offsetWidth;
-      const h = tapZone.offsetHeight;
-      return ox >= HZ.x1 * w && ox <= HZ.x2 * w
-          && oy >= HZ.y1 * h && oy <= HZ.y2 * h;
-    }
 
     /* ══════════════════════════════════════
        유틸
@@ -647,8 +621,8 @@
         const ctx = getAudioCtx(); const now = ctx.currentTime;
         const osc = ctx.createOscillator(); const gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(hot ? (isLove() ? 260 : 300) : 180, now);
-        osc.frequency.exponentialRampToValueAtTime(hot ? (isLove() ? 80 : 60) : 50, now + .12);
+        osc.frequency.setValueAtTime(isLove() ? 260 : 300, now);
+        osc.frequency.exponentialRampToValueAtTime(isLove() ? 80 : 60, now + .12);
         gain.gain.setValueAtTime(isLove() ? .42 : .58, now);
         gain.gain.exponentialRampToValueAtTime(.001, now + .13);
         osc.connect(gain); gain.connect(ctx.destination);
@@ -724,7 +698,6 @@
 
     function shakeCard(hot) {
       const cls = isLove() ? 'shake-love' : 'shake-angry';
-      if (!hot && isLove()) return;
       cardWrap.classList.remove('shake-love','shake-angry');
       void cardWrap.offsetWidth;
       cardWrap.classList.add(cls);
@@ -732,32 +705,29 @@
     }
 
     /* ══════════════════════════════════════
-       핵심 탭 처리
+       핵심 탭 처리 (영상 전체 = 적중)
     ══════════════════════════════════════ */
     function handleTap(ox, oy, clientX, clientY) {
-      const hot = isHotZone(ox, oy);   /* ← 이제 x, y 모두 체크 */
-
       clearTimeout(comboTimer);
-      if (hot) comboStreak++; else comboStreak = 0;
+      comboStreak++;
       comboTimer = setTimeout(resetCombo, 500);
       updateComboBadge();
 
-      if (hot) {
-        if (isLove()) { loveCount++;  save('loveCount', loveCount); }
-        else          { angryCount++; save('angryCount', angryCount); }
-        updateBadges();
-      }
+      if (isLove()) { loveCount++;  save('loveCount', loveCount); }
+      else          { angryCount++; save('angryCount', angryCount); }
+      updateBadges();
 
-      playPang(hot);
-      spawnHand(ox, oy, hot);
+      playPang(true);
+      spawnHand(ox, oy, true);
       spawnPulse(ox, oy);
-      spawnRipple(ox, oy, hot);
-      if (hot) { spawnFlash(true); shakeCard(true); }
+      spawnRipple(ox, oy, true);
+      spawnFlash(true);
+      shakeCard(true);
 
-      if (hot && navigator.vibrate) navigator.vibrate(isLove() ? 30 : [50, 30, 50]);
+      if (navigator.vibrate) navigator.vibrate(isLove() ? 30 : [50, 30, 50]);
 
       const pool = isLove() ? loveMsgs : angryMsgs;
-      spawnBubble(hot ? pick(pool) : (isLove() ? '거긴 아니야' : '엉덩이 위치 파악해!'));
+      spawnBubble(pick(pool));
     }
 
     /* ══════════════════════════════════════
@@ -845,45 +815,6 @@
       toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
     }
 
-    document.getElementById('btnPhoto').addEventListener('click', async () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = vid.videoWidth || 1280; canvas.height = vid.videoHeight || 720;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
-
-        const fs = Math.round(canvas.width * .038); const pad = fs * .5;
-        ctx.font = `bold ${fs}px Pretendard, sans-serif`;
-        const count = isLove() ? loveCount : angryCount;
-        const label = (isLove() ? '토닥 ' : '팡팡 ') + count + '회';
-        const tw = ctx.measureText(label).width;
-        ctx.fillStyle = 'rgba(255,245,230,0.85)';
-        roundRect(ctx, pad*.5, pad*.5, tw + pad*1.4, fs + pad, fs*.45);
-        ctx.fillStyle = '#7a4f2a';
-        ctx.fillText(label, pad*1.1, pad + fs*.85);
-
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = `momonga_${count}.png`; a.click();
-        URL.revokeObjectURL(url);
-        showToast('📸 사진 저장 완료!');
-      } catch { showToast('😢 사진 저장 실패'); }
-    });
-
-    function roundRect(ctx, x, y, w, h, r) {
-      ctx.beginPath();
-      ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-      ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-      ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-      ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
-      ctx.closePath(); ctx.fill();
-    }
-
-    document.getElementById('btnVideo').addEventListener('click', () => {
-      const a = document.createElement('a'); a.href = 'momong.mp4'; a.download = 'momonga.mp4'; a.click();
-      showToast('🎬 영상 저장 시작!');
-    });
-
     document.getElementById('btnReset').addEventListener('click', () => {
       if (!confirm('카운터를 초기화할까요? 메시지와 모드는 유지됩니다.')) return;
       loveCount = 0; angryCount = 0; comboStreak = 0; currentLevel = -1;
@@ -906,7 +837,6 @@
     }
 
     /* ── 초기화 ── */
-    syncHotZoneViz();
     applyMode();
     vid.play().catch(() => {});
   })();
