@@ -344,6 +344,48 @@
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     /* ══════════════════════════════════════
+       확인 다이얼로그 (confirm 대체)
+    ══════════════════════════════════════ */
+    .confirm-overlay {
+      position: fixed; inset: 0; z-index: 600;
+      background: rgba(74,55,40,.40);
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .confirm-overlay.open { opacity: 1; pointer-events: all; }
+    .confirm-box {
+      width: 100%; max-width: 320px;
+      background: #fffaf5; border-radius: 20px;
+      padding: 24px 20px 18px;
+      box-shadow: 0 12px 40px rgba(74,55,40,.2);
+      transform: scale(.92);
+      transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    .confirm-overlay.open .confirm-box { transform: scale(1); }
+    .confirm-msg {
+      font-size: 15px; font-weight: 700; color: #4a3728;
+      text-align: center; line-height: 1.5;
+    }
+    .confirm-btns { display: flex; gap: 8px; }
+    .confirm-cancel {
+      flex: 1; padding: 11px; border-radius: 12px;
+      border: 1.5px solid #e8d8c4; background: #fff;
+      color: #a07850; font-family: inherit; font-size: 14px; font-weight: 600;
+      cursor: pointer; touch-action: manipulation;
+    }
+    .confirm-cancel:active { background: #f5e8df; }
+    .confirm-ok {
+      flex: 1; padding: 11px; border-radius: 12px;
+      border: none; background: #ffb6c1; color: #fff;
+      font-family: inherit; font-size: 14px; font-weight: 700;
+      cursor: pointer; touch-action: manipulation;
+    }
+    .confirm-ok.danger { background: #ff5252; }
+    .confirm-ok:active { opacity: .85; }
+
+    /* ══════════════════════════════════════
        메시지 편집 모달
     ══════════════════════════════════════ */
     .modal-overlay {
@@ -417,6 +459,17 @@
   </style>
 </head>
 <body>
+
+  <!-- 확인 다이얼로그 (confirm 대체) -->
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box">
+      <div class="confirm-msg" id="confirmMsg"></div>
+      <div class="confirm-btns">
+        <button class="confirm-cancel" id="confirmCancel">취소</button>
+        <button class="confirm-ok"     id="confirmOk">확인</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 레벨업 오버레이 -->
   <div id="levelFlash"></div>
@@ -515,6 +568,31 @@
     /* ── localStorage 헬퍼 ── */
     const load = (k, def) => { try { const v = localStorage.getItem(k); return v !== null ? JSON.parse(v) : def; } catch { return def; } };
     const save = (k, v)   => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+    /* ── 커스텀 confirm 다이얼로그 ── */
+    const confirmOverlay = document.getElementById('confirmOverlay');
+    const confirmMsg     = document.getElementById('confirmMsg');
+    const confirmOk      = document.getElementById('confirmOk');
+    const confirmCancel  = document.getElementById('confirmCancel');
+
+    function showConfirm({ message, okLabel = '확인', danger = false, onOk }) {
+      confirmMsg.textContent = message;
+      confirmOk.textContent  = okLabel;
+      confirmOk.classList.toggle('danger', danger);
+      confirmOverlay.classList.add('open');
+
+      const cleanup = () => {
+        confirmOverlay.classList.remove('open');
+        confirmOk.removeEventListener('click', handleOk);
+        confirmCancel.removeEventListener('click', cleanup);
+        /* 다이얼로그 닫힐 때 영상 재생 보장 */
+        if (vid.paused) vid.play().catch(() => {});
+      };
+      const handleOk = () => { cleanup(); onOk(); };
+
+      confirmOk.addEventListener('click', handleOk, { once: true });
+      confirmCancel.addEventListener('click', cleanup, { once: true });
+    }
 
     /* ── 상태 ── */
     let mode         = load('mode', 'love');
@@ -820,11 +898,16 @@
     });
 
     document.getElementById('modalRestore').addEventListener('click', () => {
-      if (!confirm('메시지를 기본값으로 되돌릴까요?')) return;
-      loveMsgs = [...DEFAULT_LOVE_MSGS]; angryMsgs = [...DEFAULT_ANGRY_MSGS];
-      save('loveMsgs', loveMsgs); save('angryMsgs', angryMsgs);
-      renderMsgList(loveMsgList, loveMsgs); renderMsgList(angryMsgList, angryMsgs);
-      showToast('기본값으로 복원됐어요');
+      showConfirm({
+        message:  '메시지를 기본값으로 되돌릴까요?',
+        okLabel:  '복원',
+        onOk: () => {
+          loveMsgs = [...DEFAULT_LOVE_MSGS]; angryMsgs = [...DEFAULT_ANGRY_MSGS];
+          save('loveMsgs', loveMsgs); save('angryMsgs', angryMsgs);
+          renderMsgList(loveMsgList, loveMsgs); renderMsgList(angryMsgList, angryMsgs);
+          showToast('기본값으로 복원됐어요');
+        },
+      });
     });
 
     /* ══════════════════════════════════════
@@ -837,12 +920,20 @@
     }
 
     document.getElementById('btnReset').addEventListener('click', () => {
-      if (!confirm('카운터를 초기화할까요? 메시지와 모드는 유지됩니다.')) return;
-      loveCount = 0; angryCount = 0; comboStreak = 0; currentLevel = -1;
-      clearTimeout(comboTimer);
-      save('loveCount', 0); save('angryCount', 0);
-      updateBadges(); updateComboBadge();
-      showToast('🔄 카운터 초기화 완료!');
+      showConfirm({
+        message:  '처음부터 다시 시작할까요?\n메시지와 모드는 유지됩니다.',
+        okLabel:  '리셋',
+        danger:   true,
+        onOk: () => {
+          loveCount = 0; angryCount = 0; comboStreak = 0; currentLevel = -1;
+          clearTimeout(comboTimer);
+          save('loveCount', 0); save('angryCount', 0);
+          updateBadges(); updateComboBadge();
+          /* 영상 재생 보장 (showConfirm cleanup에서도 호출되지만 명시적으로) */
+          if (vid.paused) vid.play().catch(() => {});
+          showToast('🔄 카운터 초기화 완료!');
+        },
+      });
     });
 
     /* ══════════════════════════════════════
@@ -856,6 +947,11 @@
         hint.remove(); localStorage.setItem('hintSeen','1');
       });
     }
+
+    /* ── 탭 전환 복귀 시 재생 보장 ── */
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && vid.paused) vid.play().catch(() => {});
+    });
 
     /* ── 초기화 ── */
     applyMode();
