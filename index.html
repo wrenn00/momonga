@@ -147,17 +147,14 @@
       display: block; pointer-events: none;
     }
 
-    /* ── 핫존 시각화 (개발용 사각형) ── */
-    /* 모몽가 엉덩이 기본 위치: 좌측 0~50%, 세로 25~70% */
+    /* ── 핫존: 클릭 감지 전용, 시각화 없음 ── */
     .hot-zone {
       position: absolute;
       left: 0; width: 50%;
-      top: 25%; height: 45%;        /* top 25% ~ 70% */
-      /* 출시 시 아래 두 줄 제거 */
-      background: rgba(255,182,193,.13);
-      border: 1.5px dashed rgba(255,140,160,.35);
+      top: 25%; height: 45%;
+      background: transparent;
+      border: none;
       pointer-events: none; z-index: 5;
-      border-radius: 12px;
     }
 
     /* ── 콤보 배지 (카드 우하단) ── */
